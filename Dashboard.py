@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from datetime import datetime
 
 # ---- Page Configs
 st.set_page_config(layout= "wide")
@@ -14,6 +15,46 @@ dados['datetime'] = pd.to_datetime(dados['timestamp'])
 # -------------------
 #       Sidebar
 # -------------------
+
+st.sidebar.title('Filtros')
+
+## Período
+with st.sidebar.expander("Período"):
+    date_min = dados['datetime'].min().to_pydatetime()
+    date_max = dados['datetime'].max().to_pydatetime()
+    todos_periodos = st.checkbox("Todo o período", value=True)
+
+    if todos_periodos:
+        f_datas = (date_min, date_max)
+    else:
+        f_datas = st.slider("Selecione o intervalo de datas", date_min, date_max, (date_min, date_max))
+
+## Máquinas
+with st.sidebar.expander("Máquinas"):
+    all_machines = st.checkbox("Todas as máquinas", value=True)
+    machines = dados['machine'].unique()
+    selec_machines = machines if all_machines else st.multiselect("Selecione as máquinas", machines, default=machines)
+
+## Status
+with st.sidebar.expander("Status das máquinas"):
+    all_status = st.checkbox("Todos os status", value=True)
+    status = dados['machine_status'].unique()
+    selec_status = status if all_status else st.multiselect("Selecione os status", status, default=status)
+
+## Tipos de falha
+with st.sidebar.expander("Tipos de Falha"):
+    all_failures = st.checkbox("Todas as falhas", value=True)
+    failures = dados['failure_type'].unique()
+    selec_failures = failures if all_failures else st.multiselect("Selecione os tipos de falha", failures, default=failures)
+
+
+query = '''
+@f_datas[0] <= datetime <= @f_datas[1] and \
+machine in @selec_machines and \
+machine_status in @selec_status and \
+failure_type in @selec_failures
+'''
+dados = dados.query(query)
 
 # -------------------
 #       Tabelas
@@ -83,7 +124,7 @@ fig_umidade = px.box(dados,
 fig_umidade.update_layout(yaxis_title='Umidade', xaxis_title='Maquina')
 
 ## Falhas e anomalias
-fig_tipos_falhas = px.histogram(dados[dados['failure_type'].notna()], 
+fig_tipos_falhas = px.histogram(dados, 
                                 x="failure_type", 
                                 color="failure_type", 
                                 title="Tipos de falhas")
